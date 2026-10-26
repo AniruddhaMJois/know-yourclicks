@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KnowYourClicks - Privacy-First Keystroke & Speed Analytics</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-brand">
+                <div class="brand-logo">⌨️</div>
+                <div class="brand-info">
+                    <h1>KnowYourClicks</h1>
+                    <span class="privacy-badge">🔒 Privacy Filter Active: Letters & Numbers Dropped</span>
+                </div>
+            </div>
+            <div class="header-status">
+                <span class="status-indicator active" id="daemon-status-pill">
+                    <span class="pulse-dot"></span> Daemon Active (127.0.0.1:45678)
+                </span>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="tab-stats">📊 Statistics & Analytics</button>
+            <button class="nav-tab" data-tab="tab-typing">✍️ Typing Screen & Shortcuts</button>
+            <button class="nav-tab" data-tab="tab-speed">⚡ Timed Speed Test</button>
+            <button class="nav-tab" data-tab="tab-shortcuts">⚙️ Shortcut Manager</button>
+            <button class="nav-tab" data-tab="tab-system">🖥️ Daemon & System</button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- TAB 1: STATISTICS -->
+            <section id="tab-stats" class="tab-pane active">
+                <div class="section-toolbar">
+                    <h2>Keystroke Activity Analytics</h2>
+                    <div class="timeframe-selector">
+                        <button class="btn-timeframe active" data-timeframe="1h">1 Hour</button>
+                        <button class="btn-timeframe" data-timeframe="1d">1 Day</button>
+                        <button class="btn-timeframe" data-timeframe="1w">1 Week</button>
+                        <button class="btn-timeframe" data-timeframe="1m">1 Month</button>
+                        <button class="btn-timeframe" data-timeframe="all">All-Time</button>
+                    </div>
+                </div>
+
+                <!-- Stats Metric Cards -->
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-title">Total Keystrokes</div>
+                        <div class="metric-value" id="stat-total-keys">0</div>
+                        <div class="metric-subtitle">Whitelisted keys only</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-title">Spacebar Presses</div>
+                        <div class="metric-value highlight-blue" id="stat-spaces">0</div>
+                        <div class="metric-subtitle" id="stat-spaces-percent">0% of total</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-title">Editing (BS / Del)</div>
+                        <div class="metric-value highlight-red" id="stat-edits">0</div>
+                        <div class="metric-subtitle" id="stat-correction-rate">0% correction rate</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-title">Punctuation Marks</div>
+                        <div class="metric-value highlight-green" id="stat-punctuations">0</div>
+                        <div class="metric-subtitle">Periods, commas, delimiters</div>
+                    </div>
+                </div>
+
+                <!-- Timeline Chart Card -->
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <h3>Activity Timeline</h3>
+                        <span class="card-tag" id="chart-timeframe-tag">Last 60 Minutes</span>
+                    </div>
+                    <div class="chart-container" id="timeline-chart-container">
+                        <!-- SVG chart dynamically rendered via JS -->
+                        <div class="empty-state">Loading timeline data...</div>
+                    </div>
+                </div>
+
+                <!-- Key Distribution Breakdown -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Whitelisted Key Distribution</h3>
+                    </div>
+                    <div class="distribution-list" id="key-distribution-list">
+                        <!-- Key bars rendered via JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: TYPING SCREEN & SHORTCUT EXPANDER -->
+            <section id="tab-typing" class="tab-pane">
+                <div class="section-toolbar">
+                    <h2>Interactive Typing Screen</h2>
+                    <span class="badge-info">Shortcuts expand automatically when you press <strong>Space</strong></span>
+                </div>
+
+                <div class="typing-workspace">
+                    <div class="typing-main">
+                        <div class="typing-header">
+                            <span class="live-counter">Words: <strong id="type-word-count">0</strong> | Chars: <strong id="type-char-count">0</strong> | Spaces: <strong id="type-space-count">0</strong></span>
+                            <button class="btn btn-secondary btn-sm" id="btn-clear-typing">Clear Screen</button>
+                        </div>
+                        <textarea id="typing-area" class="typing-textarea" placeholder="Type here. For example, type 'idk' and press Space to test expansion..."></textarea>
+                        <div class="expansion-alert" id="expansion-alert">
+                            ✨ Expanded: <span id="alert-trigger">idk</span> ➔ <strong id="alert-replacement">i dont know</strong>
+                        </div>
+                    </div>
+
+                    <div class="typing-sidebar">
+                        <div class="card">
+                            <h3>Active Shortcuts</h3>
+                            <p class="text-muted">Type the abbreviation and press <kbd>Space</kbd>:</p>
+                            <div class="shortcuts-cheat-sheet" id="shortcuts-cheat-sheet">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: TIMED SPEED TEST -->
+            <section id="tab-speed" class="tab-pane">
+                <div class="section-toolbar">
+                    <h2>On-Demand Typing Speed Test</h2>
+                    <p class="text-muted">Typing speed is counted only when explicitly triggered.</p>
+                </div>
+
+                <div class="speed-config-card card">
+                    <div class="config-row">
+                        <div class="config-group">
+                            <label>1. Select Duration:</label>
+                            <div class="timer-selector">
+                                <button class="btn-timer active" data-duration="30">30s</button>
+                                <button class="btn-timer" data-duration="60">60s</button>
+                                <button class="btn-timer" data-duration="90">90s</button>
+                                <button class="btn-timer" data-duration="120">120s</button>
+                            </div>
+                        </div>
+
+                        <div class="config-group">
+                            <label>2. Select Mode:</label>
+                            <div class="mode-selector">
+                                <label class="radio-label">
+                                    <input type="radio" name="speed-mode" value="given_text" checked>
+                                    <span>Try with Given Text (In-App)</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="speed-mode" value="background">
+                                    <span>Measure in Background (Passive)</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="timer-action-bar">
+                        <div class="countdown-display" id="speed-countdown">00:30</div>
+                        <button class="btn btn-primary btn-lg" id="btn-speed-toggle">Start Speed Test</button>
+                    </div>
+                </div>
+
+                <!-- Given Text Test Arena -->
+                <div class="card test-arena hidden" id="given-text-arena">
+                    <div class="prompt-box" id="test-prompt-text">
+                        Loading sample prompt...
+                    </div>
+                    <textarea class="test-input" id="test-input-area" placeholder="Start typing the text above... Timer begins upon your first keystroke!" disabled></textarea>
+                    <div class="live-stats-bar">
+                        <span>Live WPM: <strong id="live-wpm">0.0</strong></span>
+                        <span>Accuracy: <strong id="live-accuracy">100%</strong></span>
+                        <span>Keys: <strong id="live-keys">0</strong></span>
+                    </div>
+                </div>
+
+                <!-- Background Test Arena -->
+                <div class="card test-arena hidden" id="background-arena">
+                    <div class="bg-test-notice">
+                        <h3>🎧 Background Speed Measurement Running</h3>
+                        <p>Switch to any window (terminal, code editor, browser, chat). Your typing rhythm will be recorded using space and punctuation boundaries.</p>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="bg-progress-fill"></div>
+                        </div>
+                        <p class="text-muted">A desktop notification will alert you when the timer completes.</p>
+                    </div>
+                </div>
+
+                <!-- Recent Speed Tests History -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Recent Speed Test Results</h3>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date/Time</th>
+                                <th>Mode</th>
+                                <th>Duration</th>
+                                <th>WPM</th>
+                                <th>CPM</th>
+                                <th>Accuracy</th>
+                                <th>Allowed Keys</th>
+                            </tr>
+                        </thead>
+                        <tbody id="speed-history-tbody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB 4: SHORTCUT MANAGER -->
+            <section id="tab-shortcuts" class="tab-pane">
+                <div class="section-toolbar">
+                    <h2>Shortcut Manager</h2>
+                    <p class="text-muted">Create abbreviations that automatically expand upon pressing Space.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Add or Update Shortcut</h3>
+                    <form id="form-add-shortcut" class="form-shortcut">
+                        <div class="form-group">
+                            <label for="input-shortcut">Shortcut Abbreviation</label>
+                            <input type="text" id="input-shortcut" placeholder="e.g. idk" required>
+                        </div>
+                        <div class="form-group flex-2">
+                            <label for="input-replacement">Expanded Replacement Text</label>
+                            <input type="text" id="input-replacement" placeholder="e.g. i dont know" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Shortcut</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h3>Configured Shortcuts</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Trigger (on Space)</th>
+                                <th>Expanded Text</th>
+                                <th>Created</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shortcuts-table-tbody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB 5: DAEMON & SYSTEM -->
+            <section id="tab-system" class="tab-pane">
+                <div class="section-toolbar">
+                    <h2>Background Daemon & Linux System Integration</h2>
+                </div>
+
+                <div class="card">
+                    <h3>Background Service Status</h3>
+                    <div class="system-status-box" id="system-status-box">
+                        Checking daemon...
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Hardware Key Listening (/dev/input)</h3>
+                    <p>To enable system-wide background key listening without root, your user account should be added to the <code>input</code> group.</p>
+                    <pre class="code-block">sudo usermod -aG input $USER</pre>
+                    <p class="text-muted">Note: After running this command, log out and log back in for changes to apply.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Systemd User Service (Autostart on Boot)</h3>
+                    <p>To keep the background service running even when all application windows are closed:</p>
+                    <pre class="code-block">./install_service.sh</pre>
+                    <p>Or manually via systemd:</p>
+                    <pre class="code-block">systemctl --user enable knowyourclicks.service
+systemctl --user start knowyourclicks.service</pre>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Speed Test Completion Modal -->
+    <div class="modal-backdrop hidden" id="modal-result">
+        <div class="modal-content">
+            <h2 id="modal-title">🎉 Speed Test Completed!</h2>
+            <div class="modal-body">
+                <div class="result-hero">
+                    <div class="result-wpm-box">
+                        <span class="wpm-number" id="result-wpm">0.0</span>
+                        <span class="wpm-label">Words Per Minute</span>
+                    </div>
+                </div>
+                <div class="result-stats-grid">
+                    <div>Accuracy: <strong id="result-accuracy">--</strong></div>
+                    <div>Duration: <strong id="result-duration">30s</strong></div>
+                    <div>Spaces Counted: <strong id="result-spaces">0</strong></div>
+                    <div>Corrections (BS): <strong id="result-edits">0</strong></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-close-modal">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

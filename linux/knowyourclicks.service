@@ -1,0 +1,12 @@
+[Unit]
+Description=KnowYourClicks Background Input Daemon
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/knowyourclicks start --foreground
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
