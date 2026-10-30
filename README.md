@@ -33,10 +33,15 @@ The background listener operates strictly on an immutable hardware whitelist:
 
 ---
 
-## 📁 Platform Implementation Plans
+## 📁 Platform Implementations
 
-Individual platform architectures and OS-level hook specifications are detailed in their respective directories:
-
-* 🐧 **[Linux Implementation Plan](linux/IMPLEMENTATION_PLAN.md)**: Evdev scancode whitelist, `/dev/uinput` expansion, Systemd user service, and Ayatana AppIndicator.
-* 🪟 **[Windows Implementation Plan](windows/IMPLEMENTATION_PLAN.md)**: Win32 `WH_KEYBOARD_LL` low-level hook filter, `SendInput` Unicode injection, and `Shell_NotifyIconW` tray.
-* 🍏 **[macOS Implementation Plan](macos/IMPLEMENTATION_PLAN.md)**: CoreGraphics Event Taps (`CGEventTapCreate`), Cocoa `NSStatusItem` Menu Bar agent, and Accessibility permissions.
+* 🐧 **[Linux Application](linux/)** (Complete):
+  - Evdev scancode whitelist, pure-python struct reader, systemd service, Web GUI dashboard.
+  - Distribution archive: [`linux/knowyourclicks-linux.tar.gz`](linux/knowyourclicks-linux.tar.gz).
+  - Architecture spec: [`linux/IMPLEMENTATION_PLAN.md`](linux/IMPLEMENTATION_PLAN.md).
+* 🪟 **[Windows Application](windows/)** (Complete):
+  - Win32 `WH_KEYBOARD_LL` low-level hook, virtual key whitelist, `SendInput` Unicode expansion, registry autostart, Web GUI dashboard.
+  - Distribution archive: [`windows/knowyourclicks-windows.zip`](windows/knowyourclicks-windows.zip).
+  - Architecture spec: [`windows/IMPLEMENTATION_PLAN.md`](windows/IMPLEMENTATION_PLAN.md).
+* 🍏 **[macOS Implementation Plan](macos/IMPLEMENTATION_PLAN.md)**:
+  - CoreGraphics Event Taps (`CGEventTapCreate`), Cocoa `NSStatusItem` Menu Bar agent, and Accessibility permissions.
