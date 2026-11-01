@@ -205,9 +205,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Typing Screen & Space Trigger Expander ---
-    typingArea.addEventListener('keydown', async (e) => {
+    typingArea.addEventListener('keydown', (e) => {
         // Enforce privacy key dispatch
-        if (e.key === ' ' || e.key === 'Backspace' || e.key === 'Delete' || e.key.length === 1 && !e.key.match(/[a-zA-Z0-9]/)) {
+        if (e.key === ' ' || e.key === 'Backspace' || e.key === 'Delete' || (e.key.length === 1 && !e.key.match(/[a-zA-Z0-9]/))) {
             dispatchKey(e.key, e.key === ' ' ? 'Space' : e.key);
         }
 
@@ -274,16 +274,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3000);
     }
 
-    async function dispatchKey(charVal, keyName) {
-        try {
-            await fetch('/api/key', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key: keyName, char: charVal })
-            });
-        } catch (e) {
-            // Background daemon handles direct hardware listener
-        }
+    function dispatchKey(charVal, keyName) {
+        // Non-blocking fire-and-forget; eliminates UI freezing and typing latency
+        fetch('/api/key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: keyName, char: charVal })
+        }).catch(() => {});
     }
 
     // --- Shortcuts Module ---
@@ -450,6 +447,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 1000);
         }
     }
+
+    testInputArea.addEventListener('keydown', (e) => {
+        if (e.key === ' ' || e.key === 'Backspace' || e.key === 'Delete' || (e.key.length === 1 && !e.key.match(/[a-zA-Z0-9]/))) {
+            dispatchKey(e.key, e.key === ' ' ? 'Space' : e.key);
+        }
+    });
 
     testInputArea.addEventListener('input', () => {
         calculateLiveGivenStats();

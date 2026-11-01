@@ -21,7 +21,7 @@ After=default.target
 
 [Service]
 Type=simple
-ExecStart=$DIR/knowyourclicks start --foreground
+ExecStart=%h/.local/bin/knowyourclicks start --foreground
 Restart=on-failure
 RestartSec=3
 

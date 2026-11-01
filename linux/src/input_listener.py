@@ -42,12 +42,18 @@ class InputListener:
         self.privacy_filter = PrivacyFilter()
         self.running = False
         self.threads: List[threading.Thread] = []
+        self._active_devices: set = set()
+        self._supervisor_thread: Optional[threading.Thread] = None
         self.status_info: Dict[str, Any] = {
             "active": False,
             "monitored_devices": [],
             "permission_error": False,
             "message": "Not started"
         }
+
+    def has_active_devices(self) -> bool:
+        """Returns True if at least one hardware device is actively monitored."""
+        return len(self._active_devices) > 0
 
     def find_keyboard_devices(self) -> List[str]:
         """Detects keyboard event devices from /proc/bus/input/devices."""
@@ -82,26 +88,26 @@ class InputListener:
         return [d[0] for d in devices]
 
     def start(self):
-        """Starts monitoring keyboard devices in background threads."""
+        """Starts monitoring keyboard devices with background supervisor thread."""
         if self.running:
             return
 
         self.running = True
+        self._scan_and_attach_devices()
+
+        # Start supervisor loop to auto-detect newly plugged keyboards or late permission grants
+        self._supervisor_thread = threading.Thread(target=self._supervisor_loop, daemon=True)
+        self._supervisor_thread.start()
+
+    def _scan_and_attach_devices(self):
+        """Scans for available keyboard devices and launches threads for unmonitored ones."""
         device_paths = self.find_keyboard_devices()
-
-        if not device_paths:
-            self.status_info = {
-                "active": False,
-                "monitored_devices": [],
-                "permission_error": False,
-                "message": "No keyboard devices detected in /dev/input."
-            }
-            return
-
-        monitored = []
         perm_error = False
 
         for dev_path in device_paths:
+            if dev_path in self._active_devices:
+                continue
+
             try:
                 # Test opening device
                 test_fd = os.open(dev_path, os.O_RDONLY | os.O_NONBLOCK)
@@ -110,18 +116,17 @@ class InputListener:
                 t = threading.Thread(target=self._read_device_loop, args=(dev_path,), daemon=True)
                 t.start()
                 self.threads.append(t)
-                monitored.append(dev_path)
             except PermissionError:
                 perm_error = True
             except Exception:
                 pass
 
-        if monitored:
+        if self._active_devices:
             self.status_info = {
                 "active": True,
-                "monitored_devices": monitored,
+                "monitored_devices": sorted(list(self._active_devices)),
                 "permission_error": False,
-                "message": f"Hardware listener active on {len(monitored)} device(s)."
+                "message": f"Hardware listener active on {len(self._active_devices)} keyboard device(s)."
             }
         elif perm_error:
             self.status_info = {
@@ -129,8 +134,8 @@ class InputListener:
                 "monitored_devices": [],
                 "permission_error": True,
                 "message": (
-                    "Direct /dev/input access requires 'input' group permissions. "
-                    "Run 'sudo usermod -aG input $USER' and log back in, or run the app with appropriate permissions."
+                    "Direct /dev/input access requires hardware permissions. "
+                    "Run './install.sh' to automatically configure udev rules, or add user to 'input' group."
                 )
             }
         else:
@@ -138,64 +143,104 @@ class InputListener:
                 "active": False,
                 "monitored_devices": [],
                 "permission_error": False,
-                "message": "Could not attach to keyboard devices."
+                "message": "Waiting for accessible keyboard input devices..."
             }
 
+    def _supervisor_loop(self):
+        """Periodic watchdog scanning for device additions or permission changes."""
+        import time
+        while self.running:
+            time.sleep(2.5)
+            if not self.running:
+                break
+            try:
+                self._scan_and_attach_devices()
+            except Exception:
+                pass
+
     def _read_device_loop(self, dev_path: str):
-        """Continuous event loop reading from an individual event device."""
+        """
+        Resilient event loop reading from an individual event device.
+        Inner try-except prevents single-event errors or transient exceptions from killing the thread.
+        """
         try:
             fd = os.open(dev_path, os.O_RDONLY)
+            self._active_devices.add(dev_path)
+            self.status_info["active"] = True
+            self.status_info["monitored_devices"] = sorted(list(self._active_devices))
+            self.status_info["message"] = f"Hardware listener active on {len(self._active_devices)} keyboard device(s)."
         except Exception:
             return
 
         try:
             while self.running:
-                # Wait for event data
-                r, _, _ = select.select([fd], [], [], 0.5)
-                if not r:
+                try:
+                    # Non-blocking wait for event data (timeout 0.5s allows checking self.running)
+                    r, _, _ = select.select([fd], [], [], 0.5)
+                    if not r:
+                        continue
+
+                    data = os.read(fd, EVENT_SIZE)
+                    if not data or len(data) < EVENT_SIZE:
+                        # EOF or device disconnected
+                        break
+
+                    sec, usec, ev_type, code, value = struct.unpack(EVENT_FORMAT, data)
+
+                    # Only process Key Press events (value == 1)
+                    if ev_type == EV_KEY and value == KEY_PRESS:
+                        # STRICT PRIVACY FILTER:
+                        # Drops any alphanumeric or unallowed key immediately!
+                        filtered = self.privacy_filter.filter_scancode(code)
+                        if filtered:
+                            key_name, category = filtered
+                            self.db.record_key_press(key_name, category)
+                            self.speed_tracker.record_key(key_name, category)
+                except (BlockingIOError, InterruptedError):
                     continue
-
-                data = os.read(fd, EVENT_SIZE)
-                if len(data) < EVENT_SIZE:
+                except (OSError, IOError):
+                    # Device unplugged or handle revoked
+                    break
+                except Exception:
+                    # Do NOT kill the thread on transient parsing errors!
                     continue
-
-                sec, usec, ev_type, code, value = struct.unpack(EVENT_FORMAT, data)
-
-                # We only process Key Press events (value == 1)
-                if ev_type == EV_KEY and value == KEY_PRESS:
-                    # STRICT PRIVACY FILTER:
-                    # Drops any alphanumeric or unallowed key immediately!
-                    filtered = self.privacy_filter.filter_scancode(code)
-                    if filtered:
-                        key_name, category = filtered
-                        self.db.record_key_press(key_name, category)
-                        self.speed_tracker.record_key(key_name, category)
-        except Exception:
-            pass
         finally:
+            self._active_devices.discard(dev_path)
             try:
                 os.close(fd)
             except Exception:
                 pass
+            if not self._active_devices:
+                self.status_info["active"] = False
+                self.status_info["monitored_devices"] = []
+                self.status_info["message"] = "No keyboard devices actively connected."
 
-    def dispatch_software_key(self, key_name: str, char_val: str = "") -> Optional[Dict[str, str]]:
+    def dispatch_software_key(self, key_name: str, char_val: str = "", force: bool = False) -> Optional[Dict[str, str]]:
         """
         Processes a key event triggered via the UI or software bridge.
         Enforces identical privacy filtering:
         - Only Space, Backspace, Delete, and Punctuation are counted.
         - Letters and digits are ignored.
+        - Avoids double-counting if hardware listener is already tracking the physical device.
         """
         filtered = self.privacy_filter.filter_key_string(key_name, char_val)
         if filtered:
             clean_name, category = filtered
-            self.db.record_key_press(clean_name, category)
+            # If hardware listener is already monitoring active keyboard devices,
+            # evdev already captures the physical key. Only write to DB via software
+            # if hardware monitoring is unavailable or if explicitly forced.
+            if not self.has_active_devices() or force:
+                self.db.record_key_press(clean_name, category)
+
+            # Update live speed tracker session if active
             self.speed_tracker.record_key(clean_name, category)
             return {"key": clean_name, "category": category}
         return None
 
     def stop(self):
-        """Stops the hardware listener threads."""
+        """Stops the hardware listener threads and supervisor."""
         self.running = False
+        self._active_devices.clear()
         self.threads.clear()
         self.status_info["active"] = False
         self.status_info["message"] = "Stopped"

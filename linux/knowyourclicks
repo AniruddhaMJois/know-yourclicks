@@ -35,6 +35,7 @@ Commands:
     restart     Restart the background daemon process
     status      Show background daemon and hardware listener status
     stats       Print summary of local keystroke statistics in terminal
+    remove-permissions  Remove background service, udev rules, and input group permissions
     help        Show this help message
 """)
 
@@ -94,6 +95,16 @@ def main():
         for k in s['key_counts'][:5]:
             print(f"  • {k['key_name']}: {k['total']}")
         print("------------------------------------------------\n")
+
+    elif cmd in ("remove-permissions", "revoke-permissions"):
+        script = ROOT_DIR / "remove_permissions.sh"
+        if not script.exists():
+            script = Path.home() / ".local" / "share" / "knowyourclicks" / "remove_permissions.sh"
+        if script.exists():
+            subprocess.run(["bash", str(script)])
+        else:
+            print("[KnowYourClicks] remove_permissions.sh not found.")
+            sys.exit(1)
 
     else:
         print(f"Unknown command: '{cmd}'")

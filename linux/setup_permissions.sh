@@ -33,12 +33,14 @@ if ! groups "$TARGET_USER" 2>/dev/null | grep -q "\binput\b"; then
     usermod -aG input "$TARGET_USER" 2>/dev/null || true
 fi
 
-# Modern udev rule with systemd uaccess tag for immediate desktop user access
-RULE_FILE="/etc/udev/rules.d/99-knowyourclicks.rules"
+# Priority 70 ensures TAG+="uaccess" is evaluated before 73-seat-late.rules
+rm -f /etc/udev/rules.d/99-knowyourclicks.rules 2>/dev/null || true
+RULE_FILE="/etc/udev/rules.d/70-knowyourclicks.rules"
 cat <<'RULE' > "$RULE_FILE"
 # KnowYourClicks: allow logged-in user access to input events and uinput
 KERNEL=="event*", SUBSYSTEM=="input", TAG+="uaccess"
 KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", MODE="0660"
+KERNEL=="event*", SUBSYSTEM=="input", GROUP="input", MODE="0660"
 RULE
 
 chmod 644 "$RULE_FILE"

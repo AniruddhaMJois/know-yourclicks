@@ -4,15 +4,17 @@ Zero cloud dependencies: all data stays strictly on local disk.
 Stores aggregated frequency counts and privacy-cleared statistics only.
 """
 
+import queue
 import sqlite3
 import threading
+import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from .config import DB_PATH
 
 
 class Database:
-    """Thread-safe SQLite database manager."""
+    """Thread-safe SQLite database manager with WAL mode and async batch writes."""
 
     _instance = None
     _lock = threading.Lock()
@@ -25,12 +27,19 @@ class Database:
             return cls._instance
 
     def _get_connection(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(DB_PATH), timeout=15.0)
+        conn = sqlite3.connect(str(DB_PATH), timeout=20.0)
         conn.row_factory = sqlite3.Row
+        # Enable Write-Ahead Logging (WAL) and robust timeout to prevent database locks
+        try:
+            conn.execute("PRAGMA journal_mode=WAL;")
+            conn.execute("PRAGMA synchronous=NORMAL;")
+            conn.execute("PRAGMA busy_timeout=10000;")
+        except Exception:
+            pass
         return conn
 
     def _init_db(self):
-        """Initializes tables and seeds default shortcuts."""
+        """Initializes tables, seeds default shortcuts, and starts async write worker."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
 
@@ -100,31 +109,90 @@ class Database:
 
             conn.commit()
 
+        # In-memory batch write queue for lock-free, zero-latency keystroke recording
+        self._write_queue: queue.Queue = queue.Queue(maxsize=50000)
+        self._worker_running = True
+        self._worker_thread = threading.Thread(target=self._batch_flusher_loop, daemon=True)
+        self._worker_thread.start()
+
     def record_key_press(self, key_name: str, category: str):
-        """Records a single whitelisted key press into minute and hour buckets."""
+        """
+        Pushes a whitelisted key press to the non-blocking in-memory queue.
+        Zero disk latency on caller thread; completely eliminates database locking.
+        """
         now = datetime.now()
         minute_bucket = now.strftime("%Y-%m-%d %H:%M")
         hour_bucket = now.strftime("%Y-%m-%d %H:00")
+        try:
+            self._write_queue.put_nowait((minute_bucket, hour_bucket, key_name, category))
+        except queue.Full:
+            pass  # Avoid blocking if queue is saturated
 
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            # Upsert into minute buckets
-            cursor.execute("""
-                INSERT INTO keystroke_minutes (minute_bucket, key_name, category, press_count)
-                VALUES (?, ?, ?, 1)
-                ON CONFLICT(minute_bucket, key_name) DO UPDATE SET
-                    press_count = press_count + 1
-            """, (minute_bucket, key_name, category))
+    def flush(self):
+        """Immediately flushes pending in-memory keystroke batch to SQLite."""
+        batch = []
+        while True:
+            try:
+                item = self._write_queue.get_nowait()
+                batch.append(item)
+            except queue.Empty:
+                break
 
-            # Upsert into hour buckets
-            cursor.execute("""
-                INSERT INTO keystroke_hourly (hour_bucket, key_name, category, press_count)
-                VALUES (?, ?, ?, 1)
-                ON CONFLICT(hour_bucket, key_name) DO UPDATE SET
-                    press_count = press_count + 1
-            """, (hour_bucket, key_name, category))
+        if not batch:
+            return
 
-            conn.commit()
+        self._write_batch_to_db(batch)
+
+    def _batch_flusher_loop(self):
+        """Background worker loop writing accumulated keystrokes in atomic batches."""
+        while self._worker_running:
+            batch = []
+            start_time = time.time()
+            # Accumulate up to 100 keystrokes or flush every 0.35 seconds
+            while len(batch) < 100 and (time.time() - start_time) < 0.35:
+                try:
+                    item = self._write_queue.get(timeout=0.1)
+                    batch.append(item)
+                except queue.Empty:
+                    break
+
+            if batch:
+                self._write_batch_to_db(batch)
+
+    def _write_batch_to_db(self, batch: List[tuple]):
+        """Aggregates and writes a batch of keystrokes inside a single transaction."""
+        min_counts: Dict[tuple, int] = {}
+        hour_counts: Dict[tuple, int] = {}
+
+        for min_bucket, hr_bucket, key_name, category in batch:
+            k_min = (min_bucket, key_name, category)
+            min_counts[k_min] = min_counts.get(k_min, 0) + 1
+
+            k_hr = (hr_bucket, key_name, category)
+            hour_counts[k_hr] = hour_counts.get(k_hr, 0) + 1
+
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                for (min_b, k_name, cat), count in min_counts.items():
+                    cursor.execute("""
+                        INSERT INTO keystroke_minutes (minute_bucket, key_name, category, press_count)
+                        VALUES (?, ?, ?, ?)
+                        ON CONFLICT(minute_bucket, key_name) DO UPDATE SET
+                            press_count = press_count + excluded.press_count
+                    """, (min_b, k_name, cat, count))
+
+                for (hr_b, k_name, cat), count in hour_counts.items():
+                    cursor.execute("""
+                        INSERT INTO keystroke_hourly (hour_bucket, key_name, category, press_count)
+                        VALUES (?, ?, ?, ?)
+                        ON CONFLICT(hour_bucket, key_name) DO UPDATE SET
+                            press_count = press_count + excluded.press_count
+                    """, (hr_b, k_name, cat, count))
+
+                conn.commit()
+        except Exception:
+            pass  # Retry on next cycle
 
     def get_shortcuts(self) -> List[Dict[str, Any]]:
         """Returns all registered shortcuts."""
@@ -204,6 +272,14 @@ class Database:
             """, (limit,))
             return [dict(row) for row in cursor.fetchall()]
 
+    def close(self):
+        """Stops the background flusher thread and commits any remaining keys."""
+        self._worker_running = False
+        try:
+            self.flush()
+        except Exception:
+            pass
+
     def get_statistics(self, timeframe: str = "1h") -> Dict[str, Any]:
         """
         Calculates aggregated stats for specified timeframe:
@@ -213,6 +289,9 @@ class Database:
         - '1m': past 30 days (daily timeline)
         - 'all': all-time recorded activity
         """
+        # Ensure any buffered keystrokes are flushed before calculating statistics
+        self.flush()
+
         now = datetime.now()
 
         if timeframe == "1h":

@@ -177,13 +177,28 @@ class APIRequestHandler(SimpleHTTPRequestHandler):
         return self._send_json({"success": False, "error": "Not Found"}, status=HTTPStatus.NOT_FOUND)
 
 
+class ReusableThreadingHTTPServer(ThreadingHTTPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+
 def run_server(host: str = "127.0.0.1", port: int = 45678):
     """Starts the HTTP server."""
-    server = ThreadingHTTPServer((host, port), APIRequestHandler)
+    try:
+        server = ReusableThreadingHTTPServer((host, port), APIRequestHandler)
+    except OSError as e:
+        if e.errno == 98:  # Address already in use
+            print(f"[KnowYourClicks Server] Port {port} is already bound by an existing instance.")
+            return
+        raise
+
     print(f"[KnowYourClicks Server] Running at http://{host}:{port}/")
     try:
         server.serve_forever()
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, SystemExit):
         pass
     finally:
-        server.server_close()
+        try:
+            server.server_close()
+        except Exception:
+            pass

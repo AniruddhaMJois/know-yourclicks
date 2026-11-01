@@ -95,14 +95,62 @@ knowyourclicks stats        # Print 24h keystroke summary in terminal
 
 ---
 
-## ⚙️ Hardware Event Permissions (`/dev/input`)
+---
 
-To enable system-wide background hardware keystroke monitoring without root:
+## 🛑 How to Remove Background Running Permissions
 
+If you ever wish to revoke background monitoring permissions, stop autostart, or remove input device access, you can do so in two ways:
+
+### Option A: One-Click Automated Script
 ```bash
-./setup_permissions.sh
+./remove_permissions.sh
 ```
-*Note: After adding your user to the `input` group, log out and log back in for changes to apply.*
+or via the CLI:
+```bash
+knowyourclicks remove-permissions
+```
+
+### Option B: Manual Terminal Commands
+Run the following commands:
+```bash
+# 1. Stop and disable background autostart service
+systemctl --user stop knowyourclicks.service
+systemctl --user disable knowyourclicks.service
+rm -f ~/.config/systemd/user/knowyourclicks.service
+systemctl --user daemon-reload
+
+# 2. Stop running daemon process
+knowyourclicks stop
+
+# 3. Remove hardware input udev rules
+sudo rm -f /etc/udev/rules.d/70-knowyourclicks.rules /etc/udev/rules.d/99-knowyourclicks.rules
+sudo udevadm control --reload-rules && sudo udevadm trigger
+
+# 4. Remove your user from the input group
+sudo gpasswd -d $USER input
+
+# 5. Clear device ACLs
+sudo setfacl -b /dev/input/event* /dev/uinput 2>/dev/null || true
+```
+
+---
+
+## 👥 Friend Installation Guide (Sharing `tar.gz`)
+
+To share and install KnowYourClicks on another Linux computer:
+
+1. **Send the Archive**:
+   Share `knowyourclicks-linux.tar.gz` with your friend.
+2. **Extract**:
+   ```bash
+   tar -xzf knowyourclicks-linux.tar.gz
+   cd knowyourclicks-linux
+   ```
+3. **Install & Run**:
+   ```bash
+   ./install.sh
+   ```
+   Open the Application Menu (press <kbd>Super</kbd>) and click **KnowYourClicks**, or type `knowyourclicks app` in terminal.
 
 ---
 

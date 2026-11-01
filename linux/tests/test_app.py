@@ -118,5 +118,32 @@ class TestUIModule(unittest.TestCase):
         self.assertTrue(ICON_SVG.exists())
 
 
+class TestAsyncBatchAndListener(unittest.TestCase):
+    def setUp(self):
+        self.db = Database()
+
+    def test_rapid_key_batch_recording(self):
+        # Push 50 keys rapidly
+        for i in range(50):
+            self.db.record_key_press("Space", "space")
+        
+        # Flushes immediately
+        self.db.flush()
+        stats = self.db.get_statistics("1h")
+        self.assertGreaterEqual(stats["spaces"], 50)
+
+    def test_software_dispatch_privacy(self):
+        from src.input_listener import InputListener
+        lis = InputListener()
+        # Allowed key
+        res = lis.dispatch_software_key("Space", " ")
+        self.assertIsNotNone(res)
+        self.assertEqual(res["key"], "Space")
+
+        # Disallowed key (letter)
+        res_blocked = lis.dispatch_software_key("k", "k")
+        self.assertIsNone(res_blocked)
+
+
 if __name__ == "__main__":
     unittest.main()

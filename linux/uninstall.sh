@@ -37,5 +37,13 @@ if command -v gtk-update-icon-cache >/dev/null 2>&1; then
     gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
 fi
 
+# Remove background permissions and udev rules if script exists
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+if [ -f "$DIR/remove_permissions.sh" ]; then
+    bash "$DIR/remove_permissions.sh" || true
+elif [ -f "$HOME/.local/share/knowyourclicks/remove_permissions.sh" ]; then
+    bash "$HOME/.local/share/knowyourclicks/remove_permissions.sh" || true
+fi
+
 echo "✓ KnowYourClicks application and service removed successfully."
 echo "Note: Your local database at ~/.local/share/knowyourclicks/stats.db was preserved."
