@@ -36,7 +36,7 @@ The background listener operates strictly on an immutable hardware whitelist:
 ## 📁 Platform Implementations
 
 * 🐧 **[Linux Application](linux/)** (Complete):
-  - Evdev scancode whitelist, pure-python struct reader, systemd service, Web GUI dashboard.
+  - Native standalone GTK desktop app window (100% offline), desktop launcher `.desktop`, app grid icon, evdev hardware whitelist, systemd background daemon.
   - Distribution archive: [`linux/knowyourclicks-linux.tar.gz`](linux/knowyourclicks-linux.tar.gz).
   - Architecture spec: [`linux/IMPLEMENTATION_PLAN.md`](linux/IMPLEMENTATION_PLAN.md).
 * 🪟 **[Windows Application](windows/)** (Complete):

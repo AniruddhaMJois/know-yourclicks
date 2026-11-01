@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""KnowYourClicks CLI executable for Linux."""
+"""KnowYourClicks CLI and Desktop Application executable for Linux."""
 
 import os
 import sys
+import time
 import subprocess
 import webbrowser
 from pathlib import Path
@@ -12,7 +13,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT_DIR))
 
 from src.daemon import start_daemon, stop_daemon, daemon_status, get_running_pid
-from src.config import DEFAULT_PORT, DEFAULT_HOST
+from src.config import DEFAULT_PORT, DEFAULT_HOST, DATA_DIR
 from src.db import Database
 
 
@@ -21,10 +22,14 @@ def print_usage():
 KnowYourClicks - Privacy-First Keystroke & Typing Speed Analytics (Linux)
 
 Usage:
+    knowyourclicks <command> [options]
+    or
     ./knowyourclicks <command> [options]
 
 Commands:
-    app         Start background daemon (if not running) and open dashboard UI
+    app         Launch native desktop application window (starts daemon if needed)
+                Options:
+                  --browser   Open dashboard in web browser instead of desktop window
     start       Start the background daemon process
     stop        Stop the running background daemon process
     restart     Restart the background daemon process
@@ -58,15 +63,22 @@ def main():
     elif cmd == "app":
         pid = get_running_pid()
         if not pid:
-            print("[KnowYourClicks] Starting background daemon...")
+            print("[KnowYourClicks] Starting background service...")
             start_daemon(foreground=False)
+            time.sleep(0.5)
 
         url = f"http://{DEFAULT_HOST}:{DEFAULT_PORT}/"
-        print(f"[KnowYourClicks] Opening Dashboard at {url}...")
-        try:
-            subprocess.run(["xdg-open", url], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception:
-            webbrowser.open(url)
+
+        if "--browser" in sys.argv:
+            print(f"[KnowYourClicks] Opening Dashboard in browser at {url}...")
+            try:
+                subprocess.run(["xdg-open", url], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except Exception:
+                webbrowser.open(url)
+        else:
+            print(f"[KnowYourClicks] Launching native Linux desktop application...")
+            from src.ui_app import launch_native_window
+            launch_native_window(url)
 
     elif cmd == "stats":
         db = Database()
@@ -76,7 +88,8 @@ def main():
         print(f"Spacebar Presses:             {s['spaces']}")
         print(f"Edits (Backspace/Delete):     {s['edits']}")
         print(f"Correction Rate:              {s['correction_rate']}%")
-        print(f"Punctuation Marks:            {s['punctuations']}\n")
+        print(f"Punctuation Marks:            {s['punctuations']}")
+        print(f"Local Storage:                {DATA_DIR}\n")
         print("Top Whitelisted Keys:")
         for k in s['key_counts'][:5]:
             print(f"  • {k['key_name']}: {k['total']}")

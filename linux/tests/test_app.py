@@ -111,5 +111,12 @@ class TestSpeedTracker(unittest.TestCase):
         self.assertEqual(result["accuracy"], 100.0)
 
 
+class TestUIModule(unittest.TestCase):
+    def test_ui_import_and_paths(self):
+        from src.ui_app import ICON_PNG, ICON_SVG
+        self.assertTrue(ICON_PNG.exists())
+        self.assertTrue(ICON_SVG.exists())
+
+
 if __name__ == "__main__":
     unittest.main()

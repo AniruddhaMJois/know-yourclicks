@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=KnowYourClicks
+GenericName=Keystroke Analytics & Speed Monitor
+Comment=Privacy-first keystroke analytics, space-triggered text expander, and speed monitor
+Exec=knowyourclicks app
+Icon=knowyourclicks
+Terminal=false
+Categories=Utility;Office;Monitor;
+StartupNotify=true
+StartupWMClass=knowyourclicks
+Keywords=keyboard;clicks;keystrokes;speed;wpm;analytics;shortcuts;typing;
+X-Purism-FormFactor=Workstation;Mobile;
