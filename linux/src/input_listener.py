@@ -12,7 +12,7 @@ import struct
 import select
 import threading
 from typing import List, Optional, Dict, Any
-from .config import EV_KEY, KEY_PRESS, SCANCODE_NAMES, ALLOWED_SCANCODES
+from .config import EV_KEY, KEY_PRESS, KEY_REPEAT, SCANCODE_NAMES, ALLOWED_SCANCODES
 from .privacy_filter import PrivacyFilter
 from .db import Database
 from .speed_tracker import SpeedTracker
@@ -187,10 +187,8 @@ class InputListener:
 
                     sec, usec, ev_type, code, value = struct.unpack(EVENT_FORMAT, data)
 
-                    # Only process Key Press events (value == 1)
-                    if ev_type == EV_KEY and value == KEY_PRESS:
-                        # STRICT PRIVACY FILTER:
-                        # Drops any alphanumeric or unallowed key immediately!
+                    # Process Key Press (1) and Key Repeat (2) events
+                    if ev_type == EV_KEY and (value == KEY_PRESS or value == KEY_REPEAT):
                         filtered = self.privacy_filter.filter_scancode(code)
                         if filtered:
                             key_name, category = filtered

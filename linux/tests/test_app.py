@@ -23,25 +23,25 @@ class TestPrivacyFilter(unittest.TestCase):
         self.assertEqual(PrivacyFilter.filter_scancode(52), ("Period (.)", "punctuation"))
         self.assertEqual(PrivacyFilter.filter_scancode(51), ("Comma (,)", "punctuation"))
 
-        # Blocked keys (letters, numbers, functional)
-        self.assertIsNone(PrivacyFilter.filter_scancode(30))  # KEY_A
-        self.assertIsNone(PrivacyFilter.filter_scancode(48))  # KEY_B
-        self.assertIsNone(PrivacyFilter.filter_scancode(2))   # KEY_1
-        self.assertIsNone(PrivacyFilter.filter_scancode(28))  # KEY_ENTER
+        # Other keys (letters, numbers, functional) are categorized anonymously as 'Other Keys'
+        self.assertEqual(PrivacyFilter.filter_scancode(30), ("Other Keys", "other"))  # KEY_A
+        self.assertEqual(PrivacyFilter.filter_scancode(48), ("Other Keys", "other"))  # KEY_B
+        self.assertEqual(PrivacyFilter.filter_scancode(2), ("Other Keys", "other"))   # KEY_1
+        self.assertEqual(PrivacyFilter.filter_scancode(28), ("Other Keys", "other"))  # KEY_ENTER
 
     def test_key_string_whitelist(self):
-        # Allowed
+        # Specific whitelisted keys
         self.assertEqual(PrivacyFilter.filter_key_string("Space"), ("Space", "space"))
         self.assertEqual(PrivacyFilter.filter_key_string("Backspace"), ("Backspace", "editing"))
         self.assertEqual(PrivacyFilter.filter_key_string("Delete"), ("Delete", "editing"))
         self.assertEqual(PrivacyFilter.filter_key_string(".", "."), ("Punctuation (.)", "punctuation"))
         self.assertEqual(PrivacyFilter.filter_key_string("!", "!"), ("Punctuation (!)", "punctuation"))
 
-        # Blocked
-        self.assertIsNone(PrivacyFilter.filter_key_string("a", "a"))
-        self.assertIsNone(PrivacyFilter.filter_key_string("Z", "Z"))
-        self.assertIsNone(PrivacyFilter.filter_key_string("9", "9"))
-        self.assertIsNone(PrivacyFilter.filter_key_string("Enter"))
+        # Alphanumeric keys categorized anonymously for total count
+        self.assertEqual(PrivacyFilter.filter_key_string("a", "a"), ("Other Keys", "other"))
+        self.assertEqual(PrivacyFilter.filter_key_string("Z", "Z"), ("Other Keys", "other"))
+        self.assertEqual(PrivacyFilter.filter_key_string("9", "9"), ("Other Keys", "other"))
+        self.assertEqual(PrivacyFilter.filter_key_string("Enter"), ("Other Keys", "other"))
 
 
 class TestTextExpander(unittest.TestCase):
@@ -89,12 +89,14 @@ class TestDatabaseAndStats(unittest.TestCase):
         self.db.record_key_press("Space", "space")
         self.db.record_key_press("Backspace", "editing")
         self.db.record_key_press("Period (.)", "punctuation")
+        self.db.record_key_press("Other Keys", "other")
 
         stats_1h = self.db.get_statistics("1h")
-        self.assertGreaterEqual(stats_1h["total_keys"], 3)
+        self.assertGreaterEqual(stats_1h["total_keys"], 4)
         self.assertGreaterEqual(stats_1h["spaces"], 1)
         self.assertGreaterEqual(stats_1h["edits"], 1)
         self.assertGreaterEqual(stats_1h["punctuations"], 1)
+        self.assertGreaterEqual(stats_1h["other"], 1)
 
 
 class TestSpeedTracker(unittest.TestCase):
@@ -135,14 +137,16 @@ class TestAsyncBatchAndListener(unittest.TestCase):
     def test_software_dispatch_privacy(self):
         from src.input_listener import InputListener
         lis = InputListener()
-        # Allowed key
+        # Allowed specific key
         res = lis.dispatch_software_key("Space", " ")
         self.assertIsNotNone(res)
         self.assertEqual(res["key"], "Space")
 
-        # Disallowed key (letter)
-        res_blocked = lis.dispatch_software_key("k", "k")
-        self.assertIsNone(res_blocked)
+        # Alphanumeric key counted anonymously for total keystrokes
+        res_other = lis.dispatch_software_key("k", "k")
+        self.assertIsNotNone(res_other)
+        self.assertEqual(res_other["key"], "Other Keys")
+        self.assertEqual(res_other["category"], "other")
 
 
 if __name__ == "__main__":

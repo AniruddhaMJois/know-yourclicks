@@ -170,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
             svgHtml += `
                 <g class="chart-bar-group">
                     <rect x="${x}" y="${y}" width="${barWidth}" height="${barH}" fill="#38bdf8" rx="3">
-                        <title>${pt.period}: ${pt.total} keys (Spaces: ${pt.space_count}, BS: ${pt.edit_count}, Punct: ${pt.punct_count})</title>
+                        <title>${pt.period}: ${pt.total} total keys (Spaces: ${pt.space_count}, BS: ${pt.edit_count}, Punct: ${pt.punct_count}, Other: ${pt.other_count || 0})</title>
                     </rect>
                     <text x="${x + barWidth / 2}" y="${height - 12}" fill="#64748b" font-size="9" text-anchor="middle">
                         ${pt.period.split(' ').pop().substring(0, 5)}
@@ -206,10 +206,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Typing Screen & Space Trigger Expander ---
     typingArea.addEventListener('keydown', (e) => {
-        // Enforce privacy key dispatch
-        if (e.key === ' ' || e.key === 'Backspace' || e.key === 'Delete' || (e.key.length === 1 && !e.key.match(/[a-zA-Z0-9]/))) {
-            dispatchKey(e.key, e.key === ' ' ? 'Space' : e.key);
-        }
+        // Dispatch key for realtime total and category tracking
+        dispatchKey(e.key, e.key === ' ' ? 'Space' : e.key);
 
         // TRIGGER ON SPACE: Text expansion
         if (e.key === ' ') {
@@ -449,9 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     testInputArea.addEventListener('keydown', (e) => {
-        if (e.key === ' ' || e.key === 'Backspace' || e.key === 'Delete' || (e.key.length === 1 && !e.key.match(/[a-zA-Z0-9]/))) {
-            dispatchKey(e.key, e.key === ' ' ? 'Space' : e.key);
-        }
+        dispatchKey(e.key, e.key === ' ' ? 'Space' : e.key);
     });
 
     testInputArea.addEventListener('input', () => {
@@ -627,14 +623,14 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/'/g, '&#039;');
     }
 
-    // --- Periodic Auto-Refresh ---
+    // --- Periodic Auto-Refresh (Live Real-Time: 1 Second) ---
     setInterval(() => {
-        // Refresh active tab data every 6 seconds
+        // Refresh active tab data every 1 second in real time
         const activeTab = document.querySelector('.nav-tab.active');
         if (activeTab && activeTab.dataset.tab === 'tab-stats') {
             loadStats();
         }
-    }, 6000);
+    }, 1000);
 
     // Initial load
     loadStats();

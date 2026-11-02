@@ -85,11 +85,12 @@ def main():
         db = Database()
         s = db.get_statistics("1d")
         print("\n--- KnowYourClicks: Last 24 Hours Statistics ---")
-        print(f"Total Whitelisted Keystrokes: {s['total_keys']}")
+        print(f"Total Keystrokes (All):       {s['total_keys']}")
         print(f"Spacebar Presses:             {s['spaces']}")
         print(f"Edits (Backspace/Delete):     {s['edits']}")
         print(f"Correction Rate:              {s['correction_rate']}%")
         print(f"Punctuation Marks:            {s['punctuations']}")
+        print(f"Other / Alphanumeric Keys:    {s.get('other', 0)}")
         print(f"Local Storage:                {DATA_DIR}\n")
         print("Top Whitelisted Keys:")
         for k in s['key_counts'][:5]:

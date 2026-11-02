@@ -4,11 +4,12 @@ A privacy-first, 100% offline Linux desktop application for keystroke cadence an
 
 ---
 
-## 🔒 Privacy Guarantee
+## 🔒 Privacy & Keystroke Tracking Guarantee
 
-KnowYourClicks is engineered to protect sensitive credentials, passwords, and private communications:
-* **Whitelisted Keys Only**: Intercepts **ONLY** `Spacebar`, `Backspace`, `Delete`, and `Punctuation marks` (`.`, `,`, `!`, `?`, `;`, `:`, `'`, `"`, `-`, `/`, `\`, `[`, `]`, `{`, `}`, `~`, `@`, `#`, `$`, `%`, `^`, `&`, `*`, `+`, `=`, `<`, `>`, `_`).
-* **Hardware-Level Alphanumeric Blocking**: Letters (`A–Z`) and numbers (`0–9`) are **immediately dropped at the Linux evdev kernel driver layer**. They are never logged, buffered, or stored.
+KnowYourClicks is engineered to protect sensitive credentials, passwords, and private communications while providing accurate total cadence metrics:
+* **Total Keystrokes (Real-Time)**: Tracks every single keyboard key press in real time so your total keystroke count reflects your true typing volume.
+* **Detailed Categorization for Whitelisted Keys**: Uniquely monitors `Spacebar`, `Backspace`, `Delete`, and `Punctuation marks` (`.`, `,`, `!`, `?`, `;`, `:`, `'`, `"`, `-`, `/`, `\`, `[`, `]`, `{`, `}`, `~`, `@`, `#`, `$`, `%`, `^`, `&`, `*`, `+`, `=`, `<`, `>`, `_`).
+* **Hardware-Level Alphanumeric Privacy**: Individual letters (`A–Z`) and numbers (`0–9`) are **never logged, identified, or stored by character**. They are counted anonymously under total keystrokes, making it impossible to reconstruct words, messages, or passwords.
 * **100% Offline & Local Storage**: Runs completely locally with zero internet access. All statistics and shortcuts are stored in local SQLite (`~/.local/share/knowyourclicks/stats.db`). Zero external network requests.
 
 ---
@@ -66,10 +67,11 @@ You can now open the app in any of the following ways:
 ### 4. Local Analytics & Statistics (Zero Cloud)
 * Filterable timeframes: **1 Hour**, **1 Day**, **1 Week**, **1 Month**, and **All-Time**.
 * Metrics:
-  - Total whitelisted keystrokes
+  - Total keystrokes (live real-time count of all keyboard clicks)
   - Spacebar presses and minute-by-minute activity timeline
   - Editing activity (Backspaces & Deletes) with correction rate percentage
   - Key distribution frequency meters
+  - Other / alphanumeric typing volume (counted anonymously)
 
 ### 5. Persistent Background Daemon (Systemd)
 The background keystroke service runs continuously via `systemd --user` so tracking continues even when the desktop window is closed.

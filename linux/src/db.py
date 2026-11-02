@@ -331,7 +331,7 @@ class Database:
                 WHERE {time_col} >= ?
                 GROUP BY category
             """, (time_filter,))
-            category_totals = {"space": 0, "editing": 0, "punctuation": 0}
+            category_totals = {"space": 0, "editing": 0, "punctuation": 0, "other": 0}
             for row in cursor.fetchall():
                 category_totals[row["category"]] = row["total"] or 0
 
@@ -345,12 +345,13 @@ class Database:
             """, (time_filter,))
             key_counts = [dict(row) for row in cursor.fetchall()]
 
-            # 3. Timeline for chart rendering
+            # 3. Timeline for chart rendering (includes total of all keystrokes)
             cursor.execute(f"""
                 SELECT {bucket_col} as period, SUM(press_count) as total,
                        SUM(CASE WHEN category = 'space' THEN press_count ELSE 0 END) as space_count,
                        SUM(CASE WHEN category = 'editing' THEN press_count ELSE 0 END) as edit_count,
-                       SUM(CASE WHEN category = 'punctuation' THEN press_count ELSE 0 END) as punct_count
+                       SUM(CASE WHEN category = 'punctuation' THEN press_count ELSE 0 END) as punct_count,
+                       SUM(CASE WHEN category = 'other' THEN press_count ELSE 0 END) as other_count
                 FROM {table}
                 WHERE {time_col} >= ?
                 GROUP BY period
@@ -362,7 +363,9 @@ class Database:
             spaces = category_totals["space"]
             edits = category_totals["editing"]
             puncts = category_totals["punctuation"]
-            correction_rate = round((edits / spaces * 100), 1) if spaces > 0 else 0.0
+            other = category_totals["other"]
+            # Correction rate: editing keys (backspace/delete) as a percentage of total keys
+            correction_rate = round((edits / total_keys * 100), 1) if total_keys > 0 else 0.0
 
             return {
                 "timeframe": timeframe,
@@ -370,6 +373,7 @@ class Database:
                 "spaces": spaces,
                 "edits": edits,
                 "punctuations": puncts,
+                "other": other,
                 "correction_rate": correction_rate,
                 "category_totals": category_totals,
                 "key_counts": key_counts,
