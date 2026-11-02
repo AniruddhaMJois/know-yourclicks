@@ -4,11 +4,12 @@ A privacy-first keystroke analytics engine, space-triggered text expander, and o
 
 ---
 
-## 🔒 Privacy Guarantee
+## 🔒 Privacy & Keystroke Tracking Guarantee
 
-KnowYourClicks is engineered from the ground up to protect passwords, private chats, and sensitive credentials:
-* **Whitelisted Keys Only**: Senses **ONLY** `Spacebar`, `Backspace`, `Delete`, and `Punctuation marks` (`.`, `,`, `!`, `?`, `;`, `:`, `'`, `"`, `-`, `/`, `\`, `[`, `]`, `{`, `}`, `~`, `@`, `#`, `$`, `%`, `^`, `&`, `*`, `+`, `=`, `<`, `>`, `_`).
-* **Hardware/Hook Alphanumeric Blocking**: All letters (`A–Z`) and numbers (`0–9`) are **immediately dropped at the Win32 `WH_KEYBOARD_LL` low-level hook callback**. They are never logged, buffered, or stored in memory or disk.
+KnowYourClicks is engineered from the ground up to protect passwords, private chats, and sensitive credentials while providing accurate total cadence metrics:
+* **Total Keystrokes (Real-Time)**: Tracks every single keyboard key press in real time so your total keystroke count reflects your true typing volume.
+* **Detailed Categorization for Whitelisted Keys**: Uniquely monitors `Spacebar`, `Backspace`, `Delete`, and `Punctuation marks` (`.`, `,`, `!`, `?`, `;`, `:`, `'`, `"`, `-`, `/`, `\`, `[`, `]`, `{`, `}`, `~`, `@`, `#`, `$`, `%`, `^`, `&`, `*`, `+`, `=`, `<`, `>`, `_`).
+* **Hardware/Hook Alphanumeric Privacy**: Individual letters (`A–Z`) and numbers (`0–9`) are **never logged, identified, or stored by character**. They are counted anonymously under total keystrokes, making it impossible to reconstruct words, messages, or passwords.
 * **100% Local Storage**: All statistics and shortcuts are stored strictly in local SQLite (`%LOCALAPPDATA%\KnowYourClicks\stats.db`). Zero cloud dependencies, zero external network requests.
 
 ---

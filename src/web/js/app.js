@@ -201,10 +201,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Typing Screen & Space Trigger Expander ---
     typingArea.addEventListener('keydown', async (e) => {
-        // Enforce privacy key dispatch
-        if (e.key === ' ' || e.key === 'Backspace' || e.key === 'Delete' || (e.key.length === 1 && !e.key.match(/[a-zA-Z0-9]/))) {
-            dispatchKey(e.key, e.key === ' ' ? 'Space' : e.key);
-        }
+        // Enforce privacy key dispatch (counts all keys while preserving anonymity)
+        dispatchKey(e.key, e.key === ' ' ? 'Space' : e.key);
 
         // TRIGGER ON SPACE: Text expansion
         if (e.key === ' ') {
@@ -446,6 +444,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    testInputArea.addEventListener('keydown', (e) => {
+        dispatchKey(e.key, e.key === ' ' ? 'Space' : e.key);
+    });
+
     testInputArea.addEventListener('input', () => {
         calculateLiveGivenStats();
         if (testInputArea.value.length >= givenPrompt.length) {
@@ -618,13 +620,13 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/'/g, '&#039;');
     }
 
-    // --- Periodic Auto-Refresh ---
+    // --- Periodic Auto-Refresh (Live Real-Time: 1 Second) ---
     setInterval(() => {
         const activeTab = document.querySelector('.nav-tab.active');
         if (activeTab && activeTab.dataset.tab === 'tab-stats') {
             loadStats();
         }
-    }, 6000);
+    }, 1000);
 
     // Initial load
     loadStats();
