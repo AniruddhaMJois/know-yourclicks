@@ -89,11 +89,17 @@ def start_daemon(foreground: bool = False, host: str = DEFAULT_HOST, port: int =
     # Foreground worker mode (runs hook and server)
     PID_FILE.write_text(str(os.getpid()))
 
+    from .db import Database
+    db = Database()
     listener = WindowsInputListener()
     listener.start()
 
     def signal_handler(signum, frame):
         listener.stop()
+        try:
+            db.close()
+        except Exception:
+            pass
         try:
             PID_FILE.unlink(missing_ok=True)
         except Exception:
@@ -110,6 +116,10 @@ def start_daemon(foreground: bool = False, host: str = DEFAULT_HOST, port: int =
         run_server(host=host, port=port)
     finally:
         listener.stop()
+        try:
+            db.close()
+        except Exception:
+            pass
         try:
             PID_FILE.unlink(missing_ok=True)
         except Exception:

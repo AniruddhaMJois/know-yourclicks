@@ -137,9 +137,10 @@ class WindowsInputListener:
                     kb_struct = KBDLLHOOKSTRUCT.from_address(lParam)
                     vk_code = kb_struct.vkCode
 
-                    # STRICT PRIVACY FILTER:
-                    # Evaluates only whitelisted keys (Space, Backspace, Delete, Punctuation)
-                    # All alphanumeric keys (0x41-0x5A, 0x30-0x39) return None and are DROPPED!
+                    # PRIVACY FILTER:
+                    # Space, Backspace, Delete, and Punctuation are tracked specifically.
+                    # All other keys (letters, numbers, etc.) are categorized anonymously as 'Other Keys'
+                    # so that Total Keystrokes reflects all presses without logging sensitive text.
                     filtered = self.privacy_filter.filter_vk_code(vk_code)
                     if filtered:
                         key_name, category = filtered

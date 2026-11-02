@@ -26,15 +26,15 @@ class TestWindowsPrivacyFilter(unittest.TestCase):
         self.assertEqual(PrivacyFilter.filter_vk_code(0xBA), ("Semicolon (;)", "punctuation"))
         self.assertEqual(PrivacyFilter.filter_vk_code(0xBF), ("Slash (/)", "punctuation"))
 
-        # Blocked keys: letters (0x41-0x5A), numbers (0x30-0x39), function keys (0x70-0x7B), Enter (0x0D)
-        self.assertIsNone(PrivacyFilter.filter_vk_code(0x41))  # 'A'
-        self.assertIsNone(PrivacyFilter.filter_vk_code(0x42))  # 'B'
-        self.assertIsNone(PrivacyFilter.filter_vk_code(0x5A))  # 'Z'
-        self.assertIsNone(PrivacyFilter.filter_vk_code(0x30))  # '0'
-        self.assertIsNone(PrivacyFilter.filter_vk_code(0x39))  # '9'
-        self.assertIsNone(PrivacyFilter.filter_vk_code(0x0D))  # Enter
-        self.assertIsNone(PrivacyFilter.filter_vk_code(0x70))  # F1
-        self.assertIsNone(PrivacyFilter.filter_vk_code(0x10))  # Shift
+        # Other keys (letters, numbers, functional keys) are categorized anonymously as 'Other Keys'
+        self.assertEqual(PrivacyFilter.filter_vk_code(0x41), ("Other Keys", "other"))  # 'A'
+        self.assertEqual(PrivacyFilter.filter_vk_code(0x42), ("Other Keys", "other"))  # 'B'
+        self.assertEqual(PrivacyFilter.filter_vk_code(0x5A), ("Other Keys", "other"))  # 'Z'
+        self.assertEqual(PrivacyFilter.filter_vk_code(0x30), ("Other Keys", "other"))  # '0'
+        self.assertEqual(PrivacyFilter.filter_vk_code(0x39), ("Other Keys", "other"))  # '9'
+        self.assertEqual(PrivacyFilter.filter_vk_code(0x0D), ("Other Keys", "other"))  # Enter
+        self.assertEqual(PrivacyFilter.filter_vk_code(0x70), ("Other Keys", "other"))  # F1
+        self.assertEqual(PrivacyFilter.filter_vk_code(0x10), ("Other Keys", "other"))  # Shift
 
     def test_key_string_whitelist(self):
         # Allowed
@@ -44,12 +44,12 @@ class TestWindowsPrivacyFilter(unittest.TestCase):
         self.assertEqual(PrivacyFilter.filter_key_string(".", "."), ("Punctuation (.)", "punctuation"))
         self.assertEqual(PrivacyFilter.filter_key_string("!", "!"), ("Punctuation (!)", "punctuation"))
 
-        # Blocked
-        self.assertIsNone(PrivacyFilter.filter_key_string("a", "a"))
-        self.assertIsNone(PrivacyFilter.filter_key_string("Z", "Z"))
-        self.assertIsNone(PrivacyFilter.filter_key_string("5", "5"))
-        self.assertIsNone(PrivacyFilter.filter_key_string("Enter"))
-        self.assertIsNone(PrivacyFilter.filter_key_string("Tab"))
+        # Alphanumeric keys categorized anonymously for total count
+        self.assertEqual(PrivacyFilter.filter_key_string("a", "a"), ("Other Keys", "other"))
+        self.assertEqual(PrivacyFilter.filter_key_string("Z", "Z"), ("Other Keys", "other"))
+        self.assertEqual(PrivacyFilter.filter_key_string("5", "5"), ("Other Keys", "other"))
+        self.assertEqual(PrivacyFilter.filter_key_string("Enter"), ("Other Keys", "other"))
+        self.assertEqual(PrivacyFilter.filter_key_string("Tab"), ("Other Keys", "other"))
 
 
 class TestWindowsTextExpander(unittest.TestCase):
@@ -96,15 +96,26 @@ class TestWindowsDatabaseAndStats(unittest.TestCase):
         self.db.record_key_press("Space", "space")
         self.db.record_key_press("Backspace", "editing")
         self.db.record_key_press("Period (.)", "punctuation")
+        self.db.record_key_press("Other Keys", "other")
 
         stats_1h = self.db.get_statistics("1h")
-        self.assertGreaterEqual(stats_1h["total_keys"], 3)
+        self.assertGreaterEqual(stats_1h["total_keys"], 4)
         self.assertGreaterEqual(stats_1h["spaces"], 1)
         self.assertGreaterEqual(stats_1h["edits"], 1)
         self.assertGreaterEqual(stats_1h["punctuations"], 1)
+        self.assertGreaterEqual(stats_1h["other"], 1)
 
         stats_1d = self.db.get_statistics("1d")
-        self.assertGreaterEqual(stats_1d["total_keys"], 3)
+        self.assertGreaterEqual(stats_1d["total_keys"], 4)
+
+    def test_rapid_key_batch_recording(self):
+        # Push 50 keys rapidly to test async batch queue
+        for _ in range(50):
+            self.db.record_key_press("Space", "space")
+
+        self.db.flush()
+        stats = self.db.get_statistics("1h")
+        self.assertGreaterEqual(stats["spaces"], 50)
 
 
 class TestWindowsSpeedTracker(unittest.TestCase):
@@ -126,7 +137,7 @@ class TestWindowsInputListener(unittest.TestCase):
         self.listener = WindowsInputListener()
 
     def test_dispatch_software_key_whitelisting(self):
-        # Whitelisted
+        # Whitelisted specific keys
         res_space = self.listener.dispatch_software_key("Space")
         self.assertIsNotNone(res_space)
         self.assertEqual(res_space["category"], "space")
@@ -139,12 +150,16 @@ class TestWindowsInputListener(unittest.TestCase):
         self.assertIsNotNone(res_dot)
         self.assertEqual(res_dot["category"], "punctuation")
 
-        # Dropped
+        # Alphanumeric keys categorized anonymously as Other Keys
         res_letter = self.listener.dispatch_software_key("a", "a")
-        self.assertIsNone(res_letter)
+        self.assertIsNotNone(res_letter)
+        self.assertEqual(res_letter["key"], "Other Keys")
+        self.assertEqual(res_letter["category"], "other")
 
         res_digit = self.listener.dispatch_software_key("7", "7")
-        self.assertIsNone(res_digit)
+        self.assertIsNotNone(res_digit)
+        self.assertEqual(res_digit["key"], "Other Keys")
+        self.assertEqual(res_digit["category"], "other")
 
 
 if __name__ == "__main__":
