@@ -73,8 +73,10 @@ class InputListener:
                     elif line.startswith("H: Handlers="):
                         handlers = line.split("=", 1)[1]
 
-                # Check if device is a keyboard
-                if "kbd" in handlers and "event" in handlers:
+                # Check if device is a keyboard and exclude pointer devices
+                is_kbd = ("kbd" in handlers or "keyboard" in name.lower())
+                is_pointer = ("mouse" in name.lower() or "touchpad" in name.lower())
+                if is_kbd and not is_pointer and "event" in handlers:
                     for token in handlers.split():
                         if token.startswith("event"):
                             dev_path = f"/dev/input/{token}"
@@ -180,20 +182,23 @@ class InputListener:
                     if not r:
                         continue
 
-                    data = os.read(fd, EVENT_SIZE)
+                    # Read all pending events from kernel buffer (up to 64 events at once to prevent dropped keys)
+                    data = os.read(fd, EVENT_SIZE * 64)
                     if not data or len(data) < EVENT_SIZE:
                         # EOF or device disconnected
                         break
 
-                    sec, usec, ev_type, code, value = struct.unpack(EVENT_FORMAT, data)
+                    # Process every complete event struct in the buffer
+                    for offset in range(0, len(data) - (len(data) % EVENT_SIZE), EVENT_SIZE):
+                        sec, usec, ev_type, code, value = struct.unpack_from(EVENT_FORMAT, data, offset)
 
-                    # Process Key Press (1) and Key Repeat (2) events
-                    if ev_type == EV_KEY and (value == KEY_PRESS or value == KEY_REPEAT):
-                        filtered = self.privacy_filter.filter_scancode(code)
-                        if filtered:
-                            key_name, category = filtered
-                            self.db.record_key_press(key_name, category)
-                            self.speed_tracker.record_key(key_name, category)
+                        # Process Key Press (1) and Key Repeat (2) events
+                        if ev_type == EV_KEY and (value == KEY_PRESS or value == KEY_REPEAT):
+                            filtered = self.privacy_filter.filter_scancode(code)
+                            if filtered:
+                                key_name, category = filtered
+                                self.db.record_key_press(key_name, category)
+                                self.speed_tracker.record_key(key_name, category)
                 except (BlockingIOError, InterruptedError):
                     continue
                 except (OSError, IOError):
