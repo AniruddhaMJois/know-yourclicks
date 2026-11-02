@@ -146,13 +146,17 @@ class Database:
     def _batch_flusher_loop(self):
         """Background worker loop writing accumulated keystrokes in atomic batches."""
         while self._worker_running:
-            batch = []
-            start_time = time.time()
-            # Accumulate up to 100 keystrokes or flush every 0.35 seconds
-            while len(batch) < 100 and (time.time() - start_time) < 0.35:
+            try:
+                # Block until at least one keystroke arrives (timeout 0.2s for clean shutdown)
+                item = self._write_queue.get(timeout=0.2)
+            except queue.Empty:
+                continue
+
+            batch = [item]
+            # Rapidly drain any remaining pending keystrokes
+            while len(batch) < 250:
                 try:
-                    item = self._write_queue.get(timeout=0.1)
-                    batch.append(item)
+                    batch.append(self._write_queue.get_nowait())
                 except queue.Empty:
                     break
 
