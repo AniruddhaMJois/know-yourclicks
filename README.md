@@ -1,47 +1,166 @@
-# KnowYourClicks
+# KnowYourClicks (Linux)
 
-A privacy-focused, cross-platform keystroke cadence analyzer, shortcut expander, and typing speed monitor that runs entirely locally with zero cloud dependencies.
-
----
-
-## 🔒 Privacy Architecture
-
-By design, **letters and numbers (A–Z, 0–9) are never sensed, buffered, or stored globally**.
-
-The background listener operates strictly on an immutable hardware whitelist:
-* **Spacebar**: Used for word boundary counting, cadence, and triggering shortcut expansions.
-* **Punctuation Marks**: (`.`, `,`, `!`, `?`, `;`, `:`, `'`, `"`, `-`, etc.) Used for punctuation distribution statistics and sentence structure analysis.
-* **Editing Keys**: (`Backspace`, `Delete`) Used to track typing correction rates and error ratios.
-* **Alphanumerics & Credentials**: **Immediately dropped** at the OS driver/hook level.
+A privacy-first, 100% offline Linux desktop application for keystroke cadence analytics, space-triggered text expansion, and on-demand typing speed measurement.
 
 ---
 
-## 🚀 Key Features
+## 🔒 Privacy & Keystroke Tracking Guarantee
 
-1. **Space-Triggered Text Expander**:
-   - Create custom shortcuts (e.g., `idk` ➔ `i dont know`).
-   - Triggered upon pressing the **Spacebar** in the typing screen (or system-wide via virtual injection).
-2. **On-Demand Typing Speed Tracker**:
-   - Configurable countdown timer: **30s**, **60s**, **90s**, **120s**.
-   - **Mode 1 (Given Text)**: Interactive typing test screen with prompt passages, real-time WPM, CPM, and accuracy %.
-   - **Mode 2 (Background)**: Passive measurement in the background across any application using space/punctuation rhythm without recording content.
-3. **Local-Only Analytics (Zero Cloud)**:
-   - Stored in a local SQLite database on your device.
-   - Breakdown reports for: **1 Hour**, **1 Day**, **1 Week**, **1 Month / All-time**.
-4. **Persistent Background Execution**:
-   - Runs seamlessly when the main app window is closed via System Tray / Menu Bar / System Daemon.
+KnowYourClicks is engineered to protect sensitive credentials, passwords, and private communications while providing accurate total cadence metrics:
+* **Total Keystrokes (Real-Time)**: Tracks every single keyboard key press in real time so your total keystroke count reflects your true typing volume.
+* **Detailed Categorization for Whitelisted Keys**: Uniquely monitors `Spacebar`, `Backspace`, `Delete`, and `Punctuation marks` (`.`, `,`, `!`, `?`, `;`, `:`, `'`, `"`, `-`, `/`, `\`, `[`, `]`, `{`, `}`, `~`, `@`, `#`, `$`, `%`, `^`, `&`, `*`, `+`, `=`, `<`, `>`, `_`).
+* **Hardware-Level Alphanumeric Privacy**: Individual letters (`A–Z`) and numbers (`0–9`) are **never logged, identified, or stored by character**. They are counted anonymously under total keystrokes, making it impossible to reconstruct words, messages, or passwords.
+* **100% Offline & Local Storage**: Runs completely locally with zero internet access. All statistics and shortcuts are stored in local SQLite (`~/.local/share/knowyourclicks/stats.db`). Zero external network requests.
 
 ---
 
-## 📁 Platform Implementations
+## 🚀 Installation & Running
 
-* 🐧 **[Linux Application](linux/)** (Complete):
-  - Native standalone GTK desktop app window (100% offline), desktop launcher `.desktop`, app grid icon, evdev hardware whitelist, systemd background daemon.
-  - Distribution archive: [`linux/knowyourclicks-linux.tar.gz`](linux/knowyourclicks-linux.tar.gz).
-  - Architecture spec: [`linux/IMPLEMENTATION_PLAN.md`](linux/IMPLEMENTATION_PLAN.md).
-* 🪟 **[Windows Application](windows/)** (Complete):
-  - Win32 `WH_KEYBOARD_LL` low-level hook, virtual key whitelist, `SendInput` Unicode expansion, registry autostart, Web GUI dashboard.
-  - Distribution archive: [`windows/knowyourclicks-windows.zip`](windows/knowyourclicks-windows.zip).
-  - Architecture spec: [`windows/IMPLEMENTATION_PLAN.md`](windows/IMPLEMENTATION_PLAN.md).
-* 🍏 **[macOS Implementation Plan](macos/IMPLEMENTATION_PLAN.md)**:
-  - CoreGraphics Event Taps (`CGEventTapCreate`), Cocoa `NSStatusItem` Menu Bar agent, and Accessibility permissions.
+### Step 1: Install the Desktop Application
+
+Run the automated installer:
+
+```bash
+./install.sh
+```
+
+This will automatically:
+1. Install the application files to `~/.local/share/knowyourclicks/app/`.
+2. Install the binary symlink to `~/.local/bin/knowyourclicks`.
+3. Install high-resolution vector and PNG desktop icons to `~/.local/share/icons/hicolor/`.
+4. Install the `.desktop` launcher to `~/.local/share/applications/knowyourclicks.desktop`.
+5. Register and start the background systemd monitoring service (`knowyourclicks.service`).
+
+### Step 2: Launch the App
+
+You can now open the app in any of the following ways:
+* **Application Menu**: Open your GNOME Application Grid / Search (press <kbd>Super</kbd>) and search for **KnowYourClicks**.
+* **Terminal**: Run `knowyourclicks app`
+* **Direct Script**: Run `./start.sh`
+
+*(Note: The app launches in a dedicated, native Linux desktop window with full offline controls.)*
+
+---
+
+## 📋 Features
+
+### 1. Dedicated Native Desktop App Window
+* Standalone desktop application window powered by PyGObject GTK & WebKit.
+* Integrated with GNOME Shell, Fedora, KDE, and Wayland window managers with native window decorations, close/minimize controls, and custom app icon.
+* 100% offline: no browser tabs, no URL bar, no external network calls.
+
+### 2. Space-Triggered Shortcut Expander
+* Configure custom abbreviations (e.g., `idk` ➔ `i dont know`).
+* In the **Typing Screen**, type `idk` and press <kbd>Space</kbd>: the text automatically expands to `i dont know `!
+* Includes a full Shortcut Manager to add, modify, or delete shortcuts.
+
+### 3. On-Demand Timed Speed Tracker
+* Activated only when triggered (never runs continuously to avoid distorted metrics).
+* Selectable countdown timers: **30s**, **60s**, **90s**, **120s**.
+* **Mode 1: Try with Given Text**:
+  - Interactive typing test with live accuracy %, gross WPM, and net CPM calculations.
+* **Mode 2: Measure in the Background (Passive)**:
+  - Runs silently in the background while you work in your text editor, terminal, or IDE.
+  - Measures typing cadence via space and punctuation rhythm without inspecting characters.
+  - Emits a native desktop notification (`notify-send`) when the timer finishes.
+
+### 4. Local Analytics & Statistics (Zero Cloud)
+* Filterable timeframes: **1 Hour**, **1 Day**, **1 Week**, **1 Month**, and **All-Time**.
+* Metrics:
+  - Total keystrokes (live real-time count of all keyboard clicks)
+  - Spacebar presses and minute-by-minute activity timeline
+  - Editing activity (Backspaces & Deletes) with correction rate percentage
+  - Key distribution frequency meters
+  - Other / alphanumeric typing volume (counted anonymously)
+
+### 5. Persistent Background Daemon (Systemd)
+The background keystroke service runs continuously via `systemd --user` so tracking continues even when the desktop window is closed.
+To check background service status:
+
+```bash
+systemctl --user status knowyourclicks.service
+```
+
+---
+
+## 🛠️ CLI Reference
+
+```bash
+knowyourclicks app          # Launch native desktop application window
+knowyourclicks app --browser# Open dashboard in browser instead of desktop window
+knowyourclicks start        # Start background daemon
+knowyourclicks stop         # Stop background daemon
+knowyourclicks restart      # Restart background daemon
+knowyourclicks status       # Check daemon PID and listener status
+knowyourclicks stats        # Print 24h keystroke summary in terminal
+```
+
+---
+
+---
+
+## 🛑 How to Remove Background Running Permissions
+
+If you ever wish to revoke background monitoring permissions, stop autostart, or remove input device access, you can do so in two ways:
+
+### Option A: One-Click Automated Script
+```bash
+./remove_permissions.sh
+```
+or via the CLI:
+```bash
+knowyourclicks remove-permissions
+```
+
+### Option B: Manual Terminal Commands
+Run the following commands:
+```bash
+# 1. Stop and disable background autostart service
+systemctl --user stop knowyourclicks.service
+systemctl --user disable knowyourclicks.service
+rm -f ~/.config/systemd/user/knowyourclicks.service
+systemctl --user daemon-reload
+
+# 2. Stop running daemon process
+knowyourclicks stop
+
+# 3. Remove hardware input udev rules
+sudo rm -f /etc/udev/rules.d/70-knowyourclicks.rules /etc/udev/rules.d/99-knowyourclicks.rules
+sudo udevadm control --reload-rules && sudo udevadm trigger
+
+# 4. Remove your user from the input group
+sudo gpasswd -d $USER input
+
+# 5. Clear device ACLs
+sudo setfacl -b /dev/input/event* /dev/uinput 2>/dev/null || true
+```
+
+---
+
+## 👥 Friend Installation Guide (Sharing `tar.gz`)
+
+To share and install KnowYourClicks on another Linux computer:
+
+1. **Send the Archive**:
+   Share `knowyourclicks-linux.tar.gz` with your friend.
+2. **Extract**:
+   ```bash
+   tar -xzf knowyourclicks-linux.tar.gz
+   cd knowyourclicks-linux
+   ```
+3. **Install & Run**:
+   ```bash
+   ./install.sh
+   ```
+   Open the Application Menu (press <kbd>Super</kbd>) and click **KnowYourClicks**, or type `knowyourclicks app` in terminal.
+
+---
+
+## 🗑️ Uninstallation
+
+To cleanly remove the desktop launcher, icons, binary, and background service:
+
+```bash
+./uninstall.sh
+```
+*(Your local statistics database at `~/.local/share/knowyourclicks/stats.db` will remain preserved.)*
